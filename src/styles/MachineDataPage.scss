@@ -1,0 +1,44 @@
+.machine-data-page {
+  .status-section {
+    display: flex;
+    align-items: center;
+    .status-button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      &.producing {
+        background-color: #4caf50; /* Green */
+        color: white;
+      }
+      &.stopped {
+        background-color: #f44336; /* Red */
+        color: white;
+      }
+    }
+    .status-info {
+      p {
+        margin: 0;
+        font-size: 14px;
+      }
+    }
+  }
+  .display-section {
+    display: flex;
+    justify-content: space-around;
+    .display {
+      text-align: center;
+      h3 {
+        margin-bottom: 5px;
+      }
+      p {
+        font-size: 1.2em;
+        margin: 0;
+      }
+    }
+  }
+  .chart-section {
+    margin: 20px 0;
+    text-align: center;
+  }
+}

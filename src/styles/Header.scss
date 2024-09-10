@@ -1,0 +1,12 @@
+@import './variables.scss';
+
+.header {
+  background-color: $primary-color;
+  color: $secondary-color;
+  padding: $padding-standard;
+  text-align: center;
+  img {
+    width: 100px;
+    margin-bottom: $padding-standard;
+  }
+}

@@ -1,0 +1,11 @@
+@import './variables.scss';
+
+.user-form {
+  display: flex;
+  flex-direction: column;
+  padding: $padding-standard;
+
+  input, button {
+    margin-bottom: $padding-standard;
+  }
+}
