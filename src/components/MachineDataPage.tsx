@@ -164,44 +164,53 @@ const MachineDataPage: React.FC = () => {
     const maxReconnectAttempts = 10;
 
     const connectWebSocket = () => {
-      wsRef.current = new WebSocket("ws://localhost:8001/ws/production-count/");
+        // Substitua pela URL correta do seu cluster HiveMQ Cloud
+        wsRef.current = new WebSocket("wss://ce6b4234bfc2445fb147f940293b23b9.s1.eu.hivemq.cloud:8884/mqtt");
 
-      wsRef.current.onopen = () => {
-        console.log("WebSocket connection opened");
-        reconnectAttempts = 0; // Reset reconnect attempts on successful connection
-      };
+        wsRef.current.onopen = () => {
+            console.log("WebSocket connection opened");
+            reconnectAttempts = 0; // Reset reconnect attempts on successful connection
 
-      wsRef.current.onmessage = (event) => {
-        console.log("WebSocket message received:", event.data); // Log received message
-        try {
-          const data = JSON.parse(event.data);
-          console.log("Parsed WebSocket data:", data);
-          if (data.count !== undefined) {
-            setContagemProducao(data.count); // Update the production count
-          } else {
-            console.warn("Received WebSocket message without 'count':", data);
-          }
-        } catch (error) {
-          console.error("Error parsing WebSocket message:", error);
-        }
-      };
+            // Enviar um pacote de autenticação (se necessário, dependendo da configuração do HiveMQ)
+            const authMessage = JSON.stringify({
+                type: "auth",
+                username: "edgeautomacao",  // O seu nome de usuário do HiveMQ
+                password: "S17kgva9"  // Sua senha do HiveMQ
+            });
+            wsRef.current?.send(authMessage);
+        };
 
-      wsRef.current.onerror = (error) => {
-        console.error("WebSocket error: ", error);
-      };
+        wsRef.current.onmessage = (event) => {
+            console.log("WebSocket message received:", event.data); // Log received message
+            try {
+                const data = JSON.parse(event.data);
+                console.log("Parsed WebSocket data:", data);
+                if (data.count !== undefined) {
+                    setContagemProducao(data.count); // Update the production count
+                } else {
+                    console.warn("Received WebSocket message without 'count':", data);
+                }
+            } catch (error) {
+                console.error("Error parsing WebSocket message:", error);
+            }
+        };
 
-      wsRef.current.onclose = (event) => {
-        console.log("WebSocket connection closed:", event);
-        if (reconnectAttempts < maxReconnectAttempts) {
-          reconnectAttempts++;
-          setTimeout(() => {
-            console.log(`Attempting to reconnect... (${reconnectAttempts})`);
-            connectWebSocket();
-          }, 3000); // Attempt reconnection after 3 seconds
-        } else {
-          console.error("Max reconnection attempts reached.");
-        }
-      };
+        wsRef.current.onerror = (error) => {
+            console.error("WebSocket error: ", error);
+        };
+
+        wsRef.current.onclose = (event) => {
+            console.log("WebSocket connection closed:", event);
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                setTimeout(() => {
+                    console.log(`Attempting to reconnect... (${reconnectAttempts})`);
+                    connectWebSocket();
+                }, 3000); // Attempt reconnection after 3 seconds
+            } else {
+                console.error("Max reconnection attempts reached.");
+            }
+        };
     };
 
     connectWebSocket();
@@ -211,7 +220,8 @@ const MachineDataPage: React.FC = () => {
         wsRef.current.close();
       }
     };
-  }, []);
+}, []);
+
 
   useEffect(() => {
     console.log("Production count updated:", contagemProducao);
