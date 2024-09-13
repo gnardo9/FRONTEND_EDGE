@@ -8,15 +8,13 @@ import "chart.js/auto";
 import "@/styles/MachineDataPage.scss";
 
 interface MachineData {
-  tempo_ativo: string | null;
-  tempo_inativo: string | null;
-  hora_inicio: string;
-  hora_fim: string;
-  status_maquina: boolean;
-  timestamp: string;
-  stopping_reason: number | null;
-  machine_id: number;
-  machine_name: string;
+  id: number; // Novo campo id
+  status: boolean; // Atualizado de status_maquina para status
+  machine_name: string; // Já presente
+  production_count: number; // Novo campo para contagem de produção
+  start_production_hour: string; // Atualizado de hora_inicio para start_production_hour
+  stop_hour: string; // Atualizado de hora_fim para stop_hour
+  stopping_reason: number | null; // Já presente
 }
 
 interface ProductionOrder {
@@ -39,14 +37,18 @@ const MachineDataPage: React.FC = () => {
   const [csrfToken, setCsrfToken] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const [refugos, setRefugos] = useState<number>(0);
-  const [selectedOrder, setSelectedOrder] = useState<ProductionOrder | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<ProductionOrder | null>(
+    null
+  );
   const [suggestions, setSuggestions] = useState<ProductionOrder[]>([]);
   const [orderQuery, setOrderQuery] = useState<string>("");
 
   useEffect(() => {
     const fetchCsrfToken = async () => {
       try {
-        const response = await axios.get("https://edgeautomacao-4-0.onrender.com/api/csrf-token/");
+        const response = await axios.get(
+          "https://edgeautomacao-4-0.onrender.com/api/csrf-token/"
+        );
         setCsrfToken(response.data.csrfToken);
         console.log("CSRF token fetched:", response.data.csrfToken);
       } catch (error) {
@@ -61,11 +63,14 @@ const MachineDataPage: React.FC = () => {
   const fetchProductionOrders = async (query: string) => {
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await axios.get(`https://edgeautomacao-4-0.onrender.com/api/production-orders/?query=${query}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const response = await axios.get(
+        `https://edgeautomacao-4-0.onrender.com/api/production-orders/?query=${query}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       setSuggestions(response.data.results);
       console.log("Production orders fetched:", response.data.results);
     } catch (error) {
@@ -82,16 +87,19 @@ const MachineDataPage: React.FC = () => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("accessToken");
-        const response = await axios.get("https://edgeautomacao-4-0.onrender.com/api/machine-data/", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const response = await axios.get(
+          "https://edgeautomacao-4-0.onrender.com/api/machine-data/",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
         console.log("Machine data fetched:", response.data);
 
         if (Array.isArray(response.data)) {
           const latestData = response.data[response.data.length - 1];
-          const statusData = latestData ? latestData.status_maquina : null;
+          const statusData = latestData ? latestData.status : null; // Atualizado
           console.log("Latest status data:", statusData);
 
           let activeTime = 0;
@@ -99,12 +107,11 @@ const MachineDataPage: React.FC = () => {
           let stopsCount = 0;
 
           response.data.forEach((item: MachineData) => {
-            if (item.tempo_ativo) {
-              activeTime += parseDuration(item.tempo_ativo);
-            }
-            if (item.tempo_inativo && item.stopping_reason !== null) {
-              inactiveTime += parseDuration(item.tempo_inativo);
-              stopsCount += 1;
+            // Supondo que a lógica de tempo ativo e inativo seja controlada por outros valores
+            if (item.start_production_hour && item.stop_hour) {
+              activeTime += parseDuration(item.start_production_hour); // Ajustar lógica se necessário
+              inactiveTime += parseDuration(item.stop_hour); // Ajustar lógica se necessário
+              stopsCount += item.stopping_reason ? 1 : 0;
             }
           });
 
@@ -113,10 +120,10 @@ const MachineDataPage: React.FC = () => {
 
           if (statusData !== null) {
             if (statusData === false) {
-              const horaFim = new Date(latestData.hora_fim).getTime();
+              const stopTime = new Date(latestData.stop_hour).getTime();
               const now = Date.now();
-              const elapsedTime = Math.floor((now - horaFim) / 1000);
-              setParadaDesde(latestData.hora_fim);
+              const elapsedTime = Math.floor((now - stopTime) / 1000);
+              setParadaDesde(latestData.stop_hour); // Atualizado
               setTempoInativoAoVivo(elapsedTime);
               setProduzindoDesde(null);
 
@@ -127,7 +134,7 @@ const MachineDataPage: React.FC = () => {
                 setTempoInativoAoVivo((prev) => prev + 1);
               }, 1000);
             } else if (statusData === true) {
-              setProduzindoDesde(latestData.hora_inicio);
+              setProduzindoDesde(latestData.start_production_hour); // Atualizado
               setParadaDesde(null);
 
               if (intervalIdRef.current) {
@@ -164,53 +171,53 @@ const MachineDataPage: React.FC = () => {
     const maxReconnectAttempts = 10;
 
     const connectWebSocket = () => {
-        // Substitua pela URL correta do seu cluster HiveMQ Cloud
-        wsRef.current = new WebSocket("wss://ce6b4234bfc2445fb147f940293b23b9.s1.eu.hivemq.cloud:8884/mqtt");
+      wsRef.current = new WebSocket(
+        "wss://ce6b4234bfc2445fb147f940293b23b9.s1.eu.hivemq.cloud:8884/mqtt"
+      );
 
-        wsRef.current.onopen = () => {
-            console.log("WebSocket connection opened");
-            reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+      wsRef.current.onopen = () => {
+        console.log("WebSocket connection opened");
+        reconnectAttempts = 0;
 
-            // Enviar um pacote de autenticação (se necessário, dependendo da configuração do HiveMQ)
-            const authMessage = JSON.stringify({
-                type: "auth",
-                username: "edgeautomacao",  // O seu nome de usuário do HiveMQ
-                password: "S17kgva9"  // Sua senha do HiveMQ
-            });
-            wsRef.current?.send(authMessage);
-        };
+        const authMessage = JSON.stringify({
+          type: "auth",
+          username: "edgeautomacao",
+          password: "S17kgva9",
+        });
+        wsRef.current?.send(authMessage);
+      };
 
-        wsRef.current.onmessage = (event) => {
-            console.log("WebSocket message received:", event.data); // Log received message
-            try {
-                const data = JSON.parse(event.data);
-                console.log("Parsed WebSocket data:", data);
-                if (data.count !== undefined) {
-                    setContagemProducao(data.count); // Update the production count
-                } else {
-                    console.warn("Received WebSocket message without 'count':", data);
-                }
-            } catch (error) {
-                console.error("Error parsing WebSocket message:", error);
-            }
-        };
+      wsRef.current.onmessage = (event) => {
+        console.log("WebSocket message received:", event.data);
+        try {
+          const data = JSON.parse(event.data);
+          console.log("Parsed WebSocket data:", data);
+          if (data.count !== undefined) {
+            setContagemProducao(data.count);
+          } else {
+            console.warn("Received WebSocket message without 'count':", data);
+          }
+        } catch (error) {
+          console.error("Error parsing WebSocket message:", error);
+        }
+      };
 
-        wsRef.current.onerror = (error) => {
-            console.error("WebSocket error: ", error);
-        };
+      wsRef.current.onerror = (error) => {
+        console.error("WebSocket error: ", error);
+      };
 
-        wsRef.current.onclose = (event) => {
-            console.log("WebSocket connection closed:", event);
-            if (reconnectAttempts < maxReconnectAttempts) {
-                reconnectAttempts++;
-                setTimeout(() => {
-                    console.log(`Attempting to reconnect... (${reconnectAttempts})`);
-                    connectWebSocket();
-                }, 3000); // Attempt reconnection after 3 seconds
-            } else {
-                console.error("Max reconnection attempts reached.");
-            }
-        };
+      wsRef.current.onclose = (event) => {
+        console.log("WebSocket connection closed:", event);
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          setTimeout(() => {
+            console.log(`Attempting to reconnect... (${reconnectAttempts})`);
+            connectWebSocket();
+          }, 3000);
+        } else {
+          console.error("Max reconnection attempts reached.");
+        }
+      };
     };
 
     connectWebSocket();
@@ -220,8 +227,7 @@ const MachineDataPage: React.FC = () => {
         wsRef.current.close();
       }
     };
-}, []);
-
+  }, []);
 
   useEffect(() => {
     console.log("Production count updated:", contagemProducao);
@@ -240,7 +246,10 @@ const MachineDataPage: React.FC = () => {
     const minutes = Math.floor((durationInSeconds % 3600) / 60);
     const seconds = Math.floor(durationInSeconds % 60);
 
-    return `${String(days).padStart(2, "0")}:${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+    return `${String(days).padStart(2, "0")}:${String(hours).padStart(
+      2,
+      "0"
+    )}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   };
 
   const startProduction = async () => {
@@ -248,7 +257,7 @@ const MachineDataPage: React.FC = () => {
     try {
       const token = localStorage.getItem("accessToken");
       await axios.post(
-        "http://127.0.0.1:8000/api/production/start/",
+        "https://edgeautomacao-4-0.onrender.com/api/production/start/",
         { machine_name: "Furadeira F400" },
         {
           headers: {
@@ -270,7 +279,7 @@ const MachineDataPage: React.FC = () => {
     try {
       const token = localStorage.getItem("accessToken");
       await axios.post(
-        "http://127.0.0.1:8000/api/production/stop/",
+        "https://edgeautomacao-4-0.onrender.com/api/production/stop/",
         {
           machine_name: "Furadeira F400",
           contagem_producao: contagemProducao,
@@ -296,7 +305,7 @@ const MachineDataPage: React.FC = () => {
     try {
       const token = localStorage.getItem("accessToken");
       await axios.patch(
-        "http://127.0.0.1:8000/api/production/update-refugos/",
+        "https://edgeautomacao-4-0.onrender.com/api/production/update-refugos/",
         {
           machine_name: "Furadeira F400",
           refugos: refugos,
@@ -324,26 +333,26 @@ const MachineDataPage: React.FC = () => {
   const onSuggestionsFetchRequested = async ({ value }: { value: string }) => {
     const token = localStorage.getItem("accessToken");
     try {
-        const response = await axios.get<{ results: ProductionOrder[] }>(
-            `http://127.0.0.1:8000/api/production-orders/?search=${value}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            }
-        );
-        setSuggestions(response.data.results); // 'results' é onde as ordens de produção estão armazenadas
+      const response = await axios.get<{ results: ProductionOrder[] }>(
+        `https://edgeautomacao-4-0.onrender.com/api/production-orders/?search=${value}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      setSuggestions(response.data.results); // 'results' é onde as ordens de produção estão armazenadas
     } catch (error) {
-        console.error("Erro ao buscar ordens de produção:", error);
+      console.error("Erro ao buscar ordens de produção:", error);
     }
-};
-
+  };
 
   const onSuggestionsClearRequested = () => {
     setSuggestions([]);
   };
 
-  const getSuggestionValue = (suggestion: ProductionOrder) => `${suggestion.name} - ${suggestion.codigo_interno}`;
+  const getSuggestionValue = (suggestion: ProductionOrder) =>
+    `${suggestion.name} - ${suggestion.codigo_interno}`;
 
   const renderSuggestion = (suggestion: ProductionOrder) => (
     <div>
@@ -354,7 +363,10 @@ const MachineDataPage: React.FC = () => {
   const inputProps = {
     placeholder: "Digite o nome ou código da ordem de produção",
     value: orderQuery,
-    onChange: (_event: React.FormEvent<HTMLElement>, { newValue }: { newValue: string }) => {
+    onChange: (
+      _event: React.FormEvent<HTMLElement>,
+      { newValue }: { newValue: string }
+    ) => {
       setOrderQuery(newValue);
     },
   };
@@ -363,7 +375,10 @@ const MachineDataPage: React.FC = () => {
     labels: ["Produzido", "A Produzir"],
     datasets: [
       {
-        data: [contagemProducao, selectedOrder ? selectedOrder.quantity - contagemProducao : 0],
+        data: [
+          contagemProducao,
+          selectedOrder ? selectedOrder.quantity - contagemProducao : 0,
+        ],
         backgroundColor: ["rgba(75,192,192,0.6)", "rgba(255,99,132,0.6)"],
         borderColor: ["rgba(75,192,192,1)", "rgba(255,99,132,1)"],
         borderWidth: 1,
@@ -381,13 +396,17 @@ const MachineDataPage: React.FC = () => {
         <div className="status-info">
           {paradaDesde && (
             <div>
-              <p>Máquina parada desde: {new Date(paradaDesde).toLocaleString()}</p>
+              <p>
+                Máquina parada desde: {new Date(paradaDesde).toLocaleString()}
+              </p>
               <p>Tempo de inatividade: {formatDuration(tempoInativoAoVivo)}</p>
             </div>
           )}
           {produzindoDesde && (
             <div>
-              <p>Produzindo desde: {new Date(produzindoDesde).toLocaleString()}</p>
+              <p>
+                Produzindo desde: {new Date(produzindoDesde).toLocaleString()}
+              </p>
             </div>
           )}
         </div>
@@ -404,7 +423,9 @@ const MachineDataPage: React.FC = () => {
       </div>
       <div className="order-info">
         {selectedOrder && (
-          <h3>Quantidade: {selectedOrder.quantity} / Produzido: {contagemProducao}</h3>
+          <h3>
+            Quantidade: {selectedOrder.quantity} / Produzido: {contagemProducao}
+          </h3>
         )}
       </div>
       <div className="chart-section">
@@ -412,8 +433,12 @@ const MachineDataPage: React.FC = () => {
         <Pie data={chartData} />
       </div>
       <div className="production-controls">
-        <button onClick={startProduction} disabled={isProducing}>Iniciar Produção</button>
-        <button onClick={stopProduction} disabled={!isProducing}>Finalizar Produção</button>
+        <button onClick={startProduction} disabled={isProducing}>
+          Iniciar Produção
+        </button>
+        <button onClick={stopProduction} disabled={!isProducing}>
+          Finalizar Produção
+        </button>
       </div>
       <div className="production-count">
         <h3>Contagem de Produção</h3>
@@ -436,7 +461,9 @@ const MachineDataPage: React.FC = () => {
           onSuggestionsClearRequested={onSuggestionsClearRequested}
           getSuggestionValue={getSuggestionValue}
           renderSuggestion={renderSuggestion}
-          onSuggestionSelected={(_, { suggestion }) => handleOrderSelection(suggestion)}
+          onSuggestionSelected={(_, { suggestion }) =>
+            handleOrderSelection(suggestion)
+          }
           inputProps={inputProps}
         />
       </div>
@@ -445,11 +472,3 @@ const MachineDataPage: React.FC = () => {
 };
 
 export default MachineDataPage;
-
-
-
-
-
-
-
-
