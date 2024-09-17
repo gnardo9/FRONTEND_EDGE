@@ -18,7 +18,7 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.7.2",
-    "chart.js": "^4.4.3",
+    "chart.js": "^4.4.4",
     "date-fns": "^3.6.0",
     "jwt-decode": "^4.0.0",
     "mqtt": "^5.7.0",
