@@ -19,7 +19,7 @@ import AddTurnForm from './components/AddTurnForm'; // Import AddTurnForm compon
 import SettingsPage from './components/SettingsPage'; // Import SettingsPage component
 import ErrorBoundary from './components/ErrorBoundary'; // Import ErrorBoundary component
 import ProductionOrderList from './components/ProductionOrderList'; // Import ProductionOrderList
-import DashboardPage from './components/DashboardPage';
+import DashboardPage from './components/DashboardPage'; // Import DashboardPage
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './styles/global.scss';
@@ -48,7 +48,7 @@ const App: React.FC = () => {
         <Route path="/users" element={<PrivateRoute element={<UserList />} />} />
         <Route path="/welcome" element={<PrivateRoute element={<WelcomePage />} />} />
         <Route path="/machine-data" element={<PrivateRoute element={<MachineDataPage />} />} />
-        <Route path="/dashboard" element={<PrivateRoute element={<DashboardPage />} />} />
+        <Route path="/dashboard" element={<PrivateRoute element={<DashboardPage />} />} /> {/* Adicionada a rota para o dashboard */}
         <Route path="/register-superuser" element={<SuperUserForm />} />
         <Route path="/sections" element={<PrivateRoute element={<SectionList />} />} />
         <Route path="/add-section" element={<PrivateRoute element={<AddSectionForm />} />} />
@@ -72,7 +72,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-
-
-

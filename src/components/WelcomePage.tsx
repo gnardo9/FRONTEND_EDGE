@@ -52,6 +52,9 @@ const WelcomePage: React.FC = () => {
             <button onClick={() => handleNavigation("/machine-data")}>
               Ver Dados da Máquina
             </button>
+            <button onClick={() => handleNavigation("/dashboard")}>
+              Ver Dashboard de Produção {/* Botão para Dashboard */}
+            </button>
             <button onClick={() => handleNavigation("/settings")}>
               Configurações
             </button>
@@ -69,5 +72,6 @@ const WelcomePage: React.FC = () => {
 };
 
 export default WelcomePage;
+
 
 
