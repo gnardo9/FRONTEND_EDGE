@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Card, CardContent, Typography, Grid } from '@mui/material';
-import { Line } from 'react-chartjs-2';
+import { Line, Bar } from 'react-chartjs-2';
 import 'chart.js/auto'; // Necessário para o Chart.js funcionar corretamente
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -28,6 +28,7 @@ const DashboardPage: React.FC = () => {
   const [machineData, setMachineData] = useState<MachineData[]>([]);
   const [chartData, setChartData] = useState<any>(null);
   const [timelineChartData, setTimelineChartData] = useState<any>(null);
+  const [paretoChartData, setParetoChartData] = useState<any>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -65,7 +66,6 @@ const DashboardPage: React.FC = () => {
         });
 
         const timelineStatusData = response.data.map((item: MachineData) => {
-          // Define colors based on status and stopping_reason
           if (!item.status) {
             return { x: new Date(item.hora_inicio_producao || '').toLocaleTimeString(), y: 0, color: 'red' }; // Machine stopped
           } else if (item.stopping_reason_detail?.name === 'Setup') {
@@ -84,12 +84,49 @@ const DashboardPage: React.FC = () => {
               borderColor: timelineStatusData.map((item: any) => item.color),
               backgroundColor: 'rgba(0, 0, 0, 0)',
               borderWidth: 2,
-              pointRadius: 0, // Remove os pontos
+              pointRadius: 0,
               fill: false,
-              stepped: true, // Cria linhas "stepped"
+              stepped: true,
             },
           ],
         });
+
+        // Prepare data for Pareto chart (stacked bar chart for reasons and production)
+        const paretoLabels = response.data.map((item: MachineData) =>
+          item.hora_inicio_producao ? new Date(item.hora_inicio_producao).toLocaleTimeString() : 'Data não disponível'
+        );
+
+        const stopReasons = ['Setup', 'Manutenção', 'Falta de Material']; // Exemplo de razões de parada
+        const productionTime = response.data.map((item: MachineData) =>
+          item.status ? (new Date(item.hora_final_producao || '').getTime() - new Date(item.hora_inicio_producao || '').getTime()) / 1000 : 0
+        );
+
+        const stopTimePerReason = stopReasons.map((reason) => {
+          return response.data.map((item: MachineData) =>
+            item.stopping_reason_detail?.name === reason
+              ? (new Date(item.hora_final_producao || '').getTime() - new Date(item.hora_inicio_producao || '').getTime()) / 1000
+              : 0
+          );
+        });
+
+        setParetoChartData({
+          labels: paretoLabels,
+          datasets: [
+            {
+              label: 'Produção (Segundos)',
+              data: productionTime,
+              backgroundColor: 'green',
+              stack: 'Stack 0',
+            },
+            ...stopReasons.map((reason, index) => ({
+              label: `${reason} (Segundos)`,
+              data: stopTimePerReason[index],
+              backgroundColor: ['orange', 'red', 'blue'][index], // Cores para cada motivo de parada
+              stack: 'Stack 0',
+            })),
+          ],
+        });
+
       } catch (error) {
         toast.error('Erro ao buscar dados da produção.');
         console.error(error);
@@ -168,13 +205,48 @@ const DashboardPage: React.FC = () => {
                   },
                 },
                 y: {
-                  display: false, // Oculta o eixo Y, já que estamos usando apenas o tempo
+                  display: false, // Oculta o eixo Y
                 },
               },
             }}
           />
         ) : (
           <Typography>Carregando gráfico de linha do tempo...</Typography>
+        )}
+      </div>
+
+      {/* Gráfico de Pareto */}
+      <div className="chart-container" style={{ marginTop: '30px' }}>
+        {paretoChartData ? (
+          <Bar
+            data={paretoChartData}
+            options={{
+              plugins: {
+                legend: {
+                  display: true,
+                },
+              },
+              scales: {
+                x: {
+                  title: {
+                    display: true,
+                    text: 'Hora de Produção',
+                  },
+                },
+                y: {
+                  title: {
+                    display: true,
+                    text: 'Tempo (Segundos)',
+                  },
+                  stacked: true,
+                },
+              },
+              responsive: true,
+              maintainAspectRatio: false,
+            }}
+          />
+        ) : (
+          <Typography>Carregando gráfico de Pareto...</Typography>
         )}
       </div>
     </div>
